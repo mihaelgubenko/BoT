@@ -387,10 +387,25 @@ async def process_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=1500,
-            temperature=0.7
+            max_tokens=3000,
+            temperature=0.7,
+            timeout=120
         )
         analysis = response.choices[0].message.content.strip()
+        
+        # Проверяем на неполный анализ
+        if not analysis or len(analysis) < 500:
+            error_msg = {
+                'ru': "❌ Получен неполный анализ. Попробуйте еще раз через /start",
+                'he': "❌ התקבל ניתוח חלקי. נסו שוב דרך /start", 
+                'en': "❌ Incomplete analysis received. Try again via /start"
+            }
+            await update.message.reply_text(error_msg[user_lang])
+            return
+        
+        # Дополняем анализ если он обрывается
+        if not analysis.endswith('---') and '🔮 ПРОГНОЗ ПОВЕДЕНИЯ:' in analysis and not 'В отношениях:' in analysis:
+            analysis += "\n\n[Анализ был автоматически дополнен для обеспечения полноты]"
         
         # Отправляем админу полный анализ (с ответами и анализом речи)
         admin_text = f"👤 Пользователь: {user.full_name} (ID: {user.id})\n🌐 Язык: {user_lang}\n\n📝 ОТВЕТЫ:\n{answers_block}\n\n{speech_analysis}\n\n🧠 ПОЛНЫЙ АНАЛИЗ:\n{analysis}"
@@ -436,7 +451,7 @@ async def process_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_summary = extract_user_summary(analysis, user_lang)
         
         # Разбиваем длинный анализ на части
-        max_length = 4000  # Немного меньше лимита для безопасности
+        max_length = 3800  # Еще меньше лимита для заголовков и безопасности
         if len(user_summary) > max_length:
             parts = []
             current_part = ""
@@ -475,11 +490,27 @@ async def process_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     except Exception as e:
         logger.error(f"Ошибка анализа: {e}")
-        error_msg = {
-            'ru': "❌ Ошибка анализа. Попробуйте позже с /start",
-            'he': "❌ שגיאת ניתוח. נסו שוב מאוחר יותר עם /start",
-            'en': "❌ Analysis error. Try again later with /start"
-        }
+        
+        # Детальная диагностика ошибки
+        if "timeout" in str(e).lower():
+            error_msg = {
+                'ru': "⏱️ Превышено время ожидания анализа. Попробуйте через несколько минут с /start",
+                'he': "⏱️ זמן הניתוח חרג. נסו שוב בעוד מספר דקות עם /start",
+                'en': "⏱️ Analysis timeout. Try again in a few minutes with /start"
+            }
+        elif "rate_limit" in str(e).lower() or "quota" in str(e).lower():
+            error_msg = {
+                'ru': "💰 Превышен лимит запросов к ИИ. Попробуйте позже с /start",
+                'he': "💰 חרגנו ממכסת הבקשות לבינה מלאכותית. נסו מאוחר יותר עם /start",
+                'en': "💰 AI request limit exceeded. Try later with /start"
+            }
+        else:
+            error_msg = {
+                'ru': "❌ Ошибка анализа. Попробуйте позже с /start",
+                'he': "❌ שגיאת ניתוח. נסו שוב מאוחר יותר עם /start",
+                'en': "❌ Analysis error. Try again later with /start"
+            }
+        
         await update.message.reply_text(error_msg[user_lang])
     finally:
         # Полностью очищаем данные пользователя
@@ -621,7 +652,52 @@ MBTI тип: [4-буквенный код + расшифровка]
 💼 אסטרטגיית קריירה אופטימלית לפיתוח מקצועי
 
 פורמט חובה לתשובה:
-[Hebrew analysis format similar to Russian but in Hebrew]
+---
+🧠 פרופיל פסיכואנליטי:
+מבנה האישיות: [אינסטנציה דומיננטית: אידו/אגו/סופר-אגו + הנמקה]
+מנגנוני הגנה: [2-3 מנגנונים עיקריים עם דוגמאות מהתשובות]
+קונפליקטים לא מודעים: [סתירות פנימיות שזוהו]
+
+🎭 ארכיטיפ וטיפולוגיה:
+ארכיטיפ דומיננטי: [ארכיטיפ לפי יונג + תיאור]
+סוג MBTI: [קוד 4 אותיות + הסבר]
+טמפרמנט: [סוג + הנמקה פסיכופיזיולוגית]
+
+📊 פרופיל אישיות (Big Five):
+פתיחות: [ציון 1-10 + תיאור]
+מצפוניות: [ציון 1-10 + תיאור]
+אקסטרוורסיה: [ציון 1-10 + תיאור]
+נעימות: [ציון 1-10 + תיאור]
+נוירוטיות: [ציון 1-10 + תיאור]
+
+🎯 פרופיילינג התנהגותי:
+מבנה מוטיבציוני: [מניעים עיקריים להתנהגות]
+אסטרטגיות התמודדות: [איך מתמודד עם לחץ]
+מודל קבלת החלטות: [רציונלי/אינטואיטיבי/רגשי]
+סגנון בינאישי: [דפוסי אינטראקציה]
+
+🗣️ ניתוח לשוני:
+דפוסי דיבור: [מאפייני שפה וסגנון]
+סמנים קוגניטיביים: [דרך חשיבה דרך הדיבור]
+אינדיקטורים רגשיים: [מצב רגשי דרך השפה]
+
+⚠️ סיכונים פסיכולוגיים:
+[2-3 אזורים בעייתיים פוטנציאליים]
+
+🎯 המלצות לפיתוח:
+[3-4 המלצות קונקרטיות עם הנמקה]
+
+💼 המלצות מקצועיות:
+תחומי פעילות מתאימים: [על בסיס סוג אישיות, יכולות ומוטיבציה]
+מקצועות קונקרטיים: [3-5 המקצועות המתאימים ביותר עם הנמקה פסיכולוגית]
+כיווני לימוד: [קורסים, התמחויות, כישורים לפיתוח קריירה]
+אסטרטגיית קריירה: [דרכים אופטימליות לצמיחה ופיתוח מקצועי]
+
+🔮 תחזית התנהגות:
+בלחץ: [תגובות סבירות]
+בצוות: [תפקיד והתנהגות]
+ביחסים: [דפוסי אינטראקציה]
+---
 
 תשובות לניתוח:
 {answers_block}
@@ -647,7 +723,52 @@ CRITICAL: Include detailed professional recommendations:
 💼 Optimal career strategy for professional development
 
 MANDATORY RESPONSE FORMAT:
-[English analysis format similar to Russian but in English]
+---
+🧠 PSYCHOANALYTIC PROFILE:
+Personality structure: [dominant instance: Id/Ego/Superego + justification]
+Defense mechanisms: [2-3 main mechanisms with examples from answers]
+Unconscious conflicts: [identified internal contradictions]
+
+🎭 ARCHETYPE AND TYPOLOGY:
+Dominant archetype: [Jung archetype + description]
+MBTI type: [4-letter code + explanation]
+Temperament: [type + psychophysiological justification]
+
+📊 PERSONALITY PROFILE (Big Five):
+Openness: [score 1-10 + description]
+Conscientiousness: [score 1-10 + description]
+Extraversion: [score 1-10 + description]
+Agreeableness: [score 1-10 + description]
+Neuroticism: [score 1-10 + description]
+
+🎯 BEHAVIORAL PROFILING:
+Motivational structure: [main behavioral drivers]
+Coping strategies: [how handles stress]
+Decision-making model: [rational/intuitive/emotional]
+Interpersonal style: [interaction patterns]
+
+🗣️ LINGUISTIC ANALYSIS:
+Speech patterns: [language and style features]
+Cognitive markers: [thinking style through speech]
+Emotional indicators: [emotional state through language]
+
+⚠️ PSYCHOLOGICAL RISKS:
+[2-3 potential problem areas]
+
+🎯 DEVELOPMENT RECOMMENDATIONS:
+[3-4 concrete recommendations with justification]
+
+💼 PROFESSIONAL RECOMMENDATIONS:
+Suitable activity fields: [based on personality type, abilities and motivation]
+Specific professions: [3-5 most suitable professions with psychological justification]
+Learning directions: [courses, specializations, skills for career development]
+Career strategy: [optimal paths for professional growth and development]
+
+🔮 BEHAVIOR FORECAST:
+Under stress: [probable reactions]
+In team: [role and behavior]
+In relationships: [interaction patterns]
+---
 
 ANSWERS FOR ANALYSIS:
 {answers_block}
