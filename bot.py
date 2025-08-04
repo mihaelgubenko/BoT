@@ -31,31 +31,31 @@ except ValueError:
 # Вопросы опроса на разных языках
 QUESTIONS = {
     'ru': [
-        "1) Опиши себя в нескольких словах. Какие качества считаешь главными в своём характере?",
-        "2) Что тебе даёт энергию в течение дня? Откуда черпаешь силы и мотивацию?",
-        "3) Что тебя больше раздражает: хаос или рутина? Почему именно это?",
-        "4) Когда перед тобой выбор, что ты делаешь в первую очередь? Как принимаешь решения?",
-        "5) Ты чаще думаешь о прошлом, настоящем или будущем? Приведи пример.",
-        "6) Что ты предпочитаешь: говорить или писать? В каких ситуациях и почему?",
-        "7) Как ты относишься к контролю — любишь управлять или предпочитаешь свободу? Объясни свою позицию."
+        "Опиши себя в нескольких словах. Какие качества считаешь главными в своём характере?",
+        "Что тебе даёт энергию в течение дня? Откуда черпаешь силы и мотивацию?",
+        "Что тебя больше раздражает: хаос или рутина? Почему именно это?",
+        "Когда перед тобой выбор, что ты делаешь в первую очередь? Как принимаешь решения?",
+        "Ты чаще думаешь о прошлом, настоящем или будущем? Приведи пример.",
+        "Что ты предпочитаешь: говорить или писать? В каких ситуациях и почему?",
+        "Как ты относишься к контролю — любишь управлять или предпочитаешь свободу? Объясни свою позицию."
     ],
     'he': [
-        "1) תאר את עצמך במספר מילים. אילו תכונות אתה רואה כעיקריות באופי שלך?",
-        "2) מה נותן לך אנרגיה במהלך היום? מאיפה אתה שואב כוח ומוטיבציה?",
-        "3) מה מרגיז אותך יותר: כאוס או שגרה? למה דווקא זה?",
-        "4) כשעומד לפניך בחירה, מה אתה עושה קודם כל? איך אתה מקבל החלטות?",
-        "5) אתה חושב יותר על העבר, ההווה או העתיד? תן דוגמה.",
-        "6) מה אתה מעדיף: לדבר או לכתוב? באילו מצבים ולמה?",
-        "7) איך אתה מתייחס לשליטה - אתה אוהב לנהל או מעדיף חופש? הסבר את העמדה שלך."
+        "תאר את עצמך במספר מילים. אילו תכונות אתה רואה כעיקריות באופי שלך?",
+        "מה נותן לך אנרגיה במהלך היום? מאיפה אתה שואב כוח ומוטיבציה?",
+        "מה מרגיז אותך יותר: כאוס או שגרה? למה דווקא זה?",
+        "כשעומד לפניך בחירה, מה אתה עושה קודם כל? איך אתה מקבל החלטות?",
+        "אתה חושב יותר על העבר, ההווה או העתיד? תן דוגמה.",
+        "מה אתה מעדיף: לדבר או לכתוב? באילו מצבים ולמה?",
+        "איך אתה מתייחס לשליטה - אתה אוהב לנהל או מעדיף חופש? הסבר את העמדה שלך."
     ],
     'en': [
-        "1) Describe yourself in a few words. What qualities do you consider main in your character?",
-        "2) What gives you energy during the day? Where do you draw strength and motivation from?",
-        "3) What annoys you more: chaos or routine? Why exactly this?",
-        "4) When faced with a choice, what do you do first? How do you make decisions?",
-        "5) Do you think more about the past, present, or future? Give an example.",
-        "6) What do you prefer: speaking or writing? In what situations and why?",
-        "7) How do you feel about control - do you like to manage or prefer freedom? Explain your position."
+        "Describe yourself in a few words. What qualities do you consider main in your character?",
+        "What gives you energy during the day? Where do you draw strength and motivation from?",
+        "What annoys you more: chaos or routine? Why exactly this?",
+        "When faced with a choice, what do you do first? How do you make decisions?",
+        "Do you think more about the past, present, or future? Give an example.",
+        "What do you prefer: speaking or writing? In what situations and why?",
+        "How do you feel about control - do you like to manage or prefer freedom? Explain your position."
     ]
 }
 
@@ -205,13 +205,17 @@ def detect_language(text):
     else:
         return 'ru'  # По умолчанию русский
 
-def is_valid_answer(text, min_words=3):
+def is_valid_answer(text, min_words=3, max_words=150):
     """Проверка валидности ответа"""
     if not text or text.strip() == "":
         return False
     
     words = text.strip().split()
     if len(words) < min_words:
+        return False
+    
+    # Проверяем максимальную длину для экономии токенов
+    if len(words) > max_words:
         return False
     
     # Проверка на бессмысленные ответы
@@ -287,12 +291,26 @@ async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     user_lang = context.user_data.get('language', 'ru')
     
     # Проверяем валидность ответа ПЕРЕД определением языка
+    words_count = len(answer.strip().split())
     if not is_valid_answer(answer):
-        invalid_messages = {
-            'ru': "❌ Пожалуйста, дайте более развёрнутый ответ (минимум 3 слова). Постарайтесь ответить честно и подробно.",
-            'he': "❌ אנא תנו תשובה מפורטת יותר (מינימום 3 מילים). נסו לענות בכנות ובפירוט.",
-            'en': "❌ Please provide a more detailed answer (minimum 3 words). Try to answer honestly and in detail."
-        }
+        if words_count < 3:
+            invalid_messages = {
+                'ru': "❌ Пожалуйста, дайте более развёрнутый ответ (минимум 3 слова). Постарайтесь ответить честно и подробно.",
+                'he': "❌ אנא תנו תשובה מפורטת יותר (מינימום 3 מילים). נסו לענות בכנות ובפירוט.",
+                'en': "❌ Please provide a more detailed answer (minimum 3 words). Try to answer honestly and in detail."
+            }
+        elif words_count > 150:
+            invalid_messages = {
+                'ru': f"❌ Ответ слишком длинный ({words_count} слов). Максимум 150 слов для экономии токенов. Сократите, сохранив суть.",
+                'he': f"❌ התשובה ארוכה מדי ({words_count} מילים). מקסימום 150 מילים לחיסכון. קצרו, שמרו על העיקר.",
+                'en': f"❌ Answer too long ({words_count} words). Maximum 150 words to save tokens. Please shorten while keeping the essence."
+            }
+        else:
+            invalid_messages = {
+                'ru': "❌ Ответ содержит недопустимые символы или выглядит как тест. Дайте честный, осмысленный ответ.",
+                'he': "❌ התשובה מכילה תווים לא מתאימים או נראית כמו בדיקה. תנו תשובה כנה ומשמעותית.",
+                'en': "❌ Answer contains invalid characters or looks like a test. Please give an honest, meaningful response."
+            }
         await update.message.reply_text(
             invalid_messages[user_lang],
             reply_markup=get_navigation_keyboard(state, user_lang)
@@ -382,12 +400,15 @@ async def process_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     prompt = create_analysis_prompt(answers_block, speech_analysis, user_lang)
     
+    # Динамически рассчитываем количество токенов
+    optimal_tokens = calculate_optimal_tokens(all_text)
+    
     try:
         client = openai.OpenAI(api_key=OPENAI_API_KEY)
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=3000,
+            max_tokens=optimal_tokens,
             temperature=0.7,
             timeout=120
         )
@@ -559,221 +580,93 @@ def analyze_speech_style(text, language):
     
     return style_description
 
+def calculate_optimal_tokens(answers_text):
+    """Рассчитывает оптимальное количество токенов на основе длины ответов"""
+    words_count = len(answers_text.split())
+    
+    # Базовая логика: чем длиннее ответы, тем меньше токенов для экономии
+    if words_count < 300:        # Короткие ответы
+        return 1500
+    elif words_count < 600:      # Средние ответы  
+        return 1200
+    elif words_count < 900:      # Длинные ответы
+        return 1000
+    else:                        # Очень длинные ответы
+        return 800
+
 def create_analysis_prompt(answers_block, speech_analysis, language):
-    """Создание промпта для анализа"""
+    """Создание оптимизированного промпта для анализа"""
     if language == 'ru':
-        return f"""Ты — ведущий психолог-профайлер с 20-летним опытом, доктор психологических наук, специалист по психоанализу (Фрейд, Юнг), когнитивно-поведенческой терапии, криминальному профайлингу и лингвистическому анализу.
+        return f"""Опытный психолог-профайлер. Проведи профессиональный анализ личности по Фрейду, Юнгу, Big Five, MBTI + речевые паттерны.
 
-Проведи ГЛУБОКИЙ профессиональный анализ личности по методикам:
-• Психоанализ (Фрейд): структура личности, защитные механизмы
-• Аналитическая психология (Юнг): архетипы, типология
-• Теория Большой Пятёрки (OCEAN)
-• Типология Майерс-Бриггс (MBTI)
-• Лингвистический профайлинг
+ОБЯЗАТЕЛЬНО включи:
+💼 ПРОФОРИЕНТАЦИЯ: конкретные профессии (3-5) с психологическим обоснованием, карьерная стратегия
 
-ТАКЖЕ проанализируй стиль речи пользователя:
+ФОРМАТ:
+🧠 ПРОФИЛЬ: доминирующая структура (Ид/Эго/Суперэго) + защитные механизмы с примерами из ответов
+🎭 ТИПОЛОГИЯ: архетип Юнга + MBTI тип + темперамент с обоснованием  
+📊 BIG FIVE: О/Д/Э/Дж/Н (баллы 1-10 + анализ)
+🎯 ПОВЕДЕНИЕ: мотивация, стратегии стресса, стиль решений, межличностные паттерны
+🗣️ РЕЧЬ: стиль, когнитивные маркеры, эмоциональные индикаторы
+⚠️ РИСКИ: 2-3 психологические уязвимости
+🎯 РАЗВИТИЕ: 3-4 конкретные рекомендации
+💼 КАРЬЕРА: подходящие сферы, профессии с обоснованием, обучение, стратегия роста
+🔮 ПРОГНОЗ: поведение в стрессе/команде/отношениях
 
-КРИТИЧЕСКИ ВАЖНО: Обязательно включи детальные профессиональные рекомендации:
-💼 Анализируй когнитивные способности, эмоциональный интеллект, мотивацию
-💼 Определи оптимальные сферы деятельности исходя из типа личности
-💼 Укажи конкретные профессии с психологическим обоснованием
-💼 Предложи направления обучения и развития навыков
-💼 Разработай стратегию карьерного роста
+{speech_analysis}
 
-ОБЯЗАТЕЛЬНЫЙ ФОРМАТ ОТВЕТА:
----
-🧠 ПСИХОАНАЛИТИЧЕСКИЙ ПРОФИЛЬ:
-Структура личности: [доминирующая инстанция: Ид/Эго/Суперэго + обоснование]
-Защитные механизмы: [2-3 основных механизма с примерами из ответов]
-Бессознательные конфликты: [выявленные внутренние противоречия]
-
-🎭 АРХЕТИП И ТИПОЛОГИЯ:
-Доминирующий архетип: [архетип по Юнгу + описание]
-MBTI тип: [4-буквенный код + расшифровка]
-Темперамент: [тип + психофизиологическое обоснование]
-
-📊 ПРОФИЛЬ ЛИЧНОСТИ (Big Five):
-Открытость: [балл 1-10 + описание]
-Добросовестность: [балл 1-10 + описание]  
-Экстраверсия: [балл 1-10 + описание]
-Доброжелательность: [балл 1-10 + описание]
-Нейротизм: [балл 1-10 + описание]
-
-🎯 ПОВЕДЕНЧЕСКИЙ ПРОФАЙЛИНГ:
-Мотивационная структура: [основные драйверы поведения]
-Стратегии совладания: [как справляется со стрессом]
-Модель принятия решений: [рациональная/интуитивная/эмоциональная]
-Межличностный стиль: [паттерны взаимодействия]
-
-🗣️ ЛИНГВИСТИЧЕСКИЙ АНАЛИЗ:
-Речевые паттерны: [особенности языка и стиля]
-Когнитивные маркеры: [способ мышления через речь]
-Эмоциональные индикаторы: [эмоциональное состояние через язык]
-
-⚠️ ПСИХОЛОГИЧЕСКИЕ РИСКИ:
-[2-3 потенциальные проблемные области]
-
-🎯 РЕКОМЕНДАЦИИ ПО РАЗВИТИЮ:
-[3-4 конкретные рекомендации с обоснованием]
-
-💼 ПРОФЕССИОНАЛЬНЫЕ РЕКОМЕНДАЦИИ:
-Подходящие сферы деятельности: [на основе типа личности, способностей и мотивации]
-Конкретные профессии: [3-5 наиболее подходящих профессий с психологическим обоснованием]
-Направления обучения: [курсы, специальности, навыки для развития карьеры]
-Карьерная стратегия: [оптимальные пути профессионального роста и развития]
-
-🔮 ПРОГНОЗ ПОВЕДЕНИЯ:
-В стрессе: [вероятные реакции]
-В команде: [роль и поведение]
-В отношениях: [паттерны взаимодействия]
----
-
-ОТВЕТЫ ДЛЯ АНАЛИЗА:
+ОТВЕТЫ:
 {answers_block}
 
-Проведи максимально глубокий анализ, используя профессиональную терминологию и конкретные примеры из ответов."""
+Используй профессиональную терминологию и примеры из ответов."""
 
     elif language == 'he':
-        return f"""אתה פסיכולוג-פרופיילר מוביל עם 20 שנות ניסיון, דוקטור לפסיכולוגיה, מומחה בפסיכואנליזה (פרויד, יונג), טיפול קוגניטיבי-התנהגותי, פרופיילינג פלילי וניתוח לשוני.
+        return f"""פסיכולוג-פרופיילר מנוסה. ניתוח מקצועי של האישיות לפי פרויד, יונג, Big Five, MBTI + דפוסי דיבור.
 
-בצע ניתוח מקצועי עמוק של האישיות לפי השיטות:
-• פסיכואנליזה (פרויד): מבנה האישיות, מנגנוני הגנה
-• פסיכולוגיה אנליטית (יונג): ארכיטיפים, טיפולוגיה
-• תיאוריית החמישייה הגדולה (OCEAN)
-• טיפולוגיית מאיירס-בריגס (MBTI)
-• פרופיילינג לשוני
+חובה לכלול:
+💼 פרופורינטציה: מקצועות קונקרטיים (3-5) עם הנמקה פסיכולוגית, אסטרטגיית קריירה
 
-גם נתח את סגנון הדיבור של המשתמש:
+פורמט:
+🧠 פרופיל: מבנה דומיננטי (אידו/אגו/סופר-אגו) + מנגנוני הגנה עם דוגמאות
+🎭 טיפולוגיה: ארכיטיפ יונג + MBTI + טמפרמנט עם הסבר
+📊 BIG FIVE: פ/מ/א/נ/נ (ציונים 1-10 + ניתוח)
+🎯 התנהגות: מוטיבציה, אסטרטגיות לחץ, סגנון החלטות, דפוסים בינאישיים
+🗣️ דיבור: סגנון, סמנים קוגניטיביים, אינדיקטורים רגשיים
+⚠️ סיכונים: 2-3 פגיעויות פסיכולוגיות
+🎯 פיתוח: 3-4 המלצות קונקרטיות
+💼 קריירה: תחומים מתאימים, מקצועות עם הנמקה, לימודים, אסטרטגיה צמיחה
+🔮 תחזית: התנהגות בלחץ/צוות/יחסים
 
-חשוב מאוד: כלול המלצות מקצועיות מפורטות:
-💼 תחומי עבודה מתאימים על בסיס סוג האישיות והיכולות
-💼 מקצועות ספציפיים (3-5) עם הנמקה פסיכולוגית
-💼 כיווני לימוד והשתלמויות מומלצים
-💼 אסטרטגיית קריירה אופטימלית לפיתוח מקצועי
+{speech_analysis}
 
-פורמט חובה לתשובה:
----
-🧠 פרופיל פסיכואנליטי:
-מבנה האישיות: [אינסטנציה דומיננטית: אידו/אגו/סופר-אגו + הנמקה]
-מנגנוני הגנה: [2-3 מנגנונים עיקריים עם דוגמאות מהתשובות]
-קונפליקטים לא מודעים: [סתירות פנימיות שזוהו]
-
-🎭 ארכיטיפ וטיפולוגיה:
-ארכיטיפ דומיננטי: [ארכיטיפ לפי יונג + תיאור]
-סוג MBTI: [קוד 4 אותיות + הסבר]
-טמפרמנט: [סוג + הנמקה פסיכופיזיולוגית]
-
-📊 פרופיל אישיות (Big Five):
-פתיחות: [ציון 1-10 + תיאור]
-מצפוניות: [ציון 1-10 + תיאור]
-אקסטרוורסיה: [ציון 1-10 + תיאור]
-נעימות: [ציון 1-10 + תיאור]
-נוירוטיות: [ציון 1-10 + תיאור]
-
-🎯 פרופיילינג התנהגותי:
-מבנה מוטיבציוני: [מניעים עיקריים להתנהגות]
-אסטרטגיות התמודדות: [איך מתמודד עם לחץ]
-מודל קבלת החלטות: [רציונלי/אינטואיטיבי/רגשי]
-סגנון בינאישי: [דפוסי אינטראקציה]
-
-🗣️ ניתוח לשוני:
-דפוסי דיבור: [מאפייני שפה וסגנון]
-סמנים קוגניטיביים: [דרך חשיבה דרך הדיבור]
-אינדיקטורים רגשיים: [מצב רגשי דרך השפה]
-
-⚠️ סיכונים פסיכולוגיים:
-[2-3 אזורים בעייתיים פוטנציאליים]
-
-🎯 המלצות לפיתוח:
-[3-4 המלצות קונקרטיות עם הנמקה]
-
-💼 המלצות מקצועיות:
-תחומי פעילות מתאימים: [על בסיס סוג אישיות, יכולות ומוטיבציה]
-מקצועות קונקרטיים: [3-5 המקצועות המתאימים ביותר עם הנמקה פסיכולוגית]
-כיווני לימוד: [קורסים, התמחויות, כישורים לפיתוח קריירה]
-אסטרטגיית קריירה: [דרכים אופטימליות לצמיחה ופיתוח מקצועי]
-
-🔮 תחזית התנהגות:
-בלחץ: [תגובות סבירות]
-בצוות: [תפקיד והתנהגות]
-ביחסים: [דפוסי אינטראקציה]
----
-
-תשובות לניתוח:
+תשובות:
 {answers_block}
 
-בצע ניתוח עמוק ביותר, השתמש בטרמינולוגיה מקצועית ובדוגמאות קונקרטיות מהתשובות."""
+השתמש בטרמינולוגיה מקצועית ודוגמאות מהתשובות."""
 
     else:  # English
-        return f"""You are a leading psychologist-profiler with 20 years of experience, PhD in Psychology, specialist in psychoanalysis (Freud, Jung), cognitive-behavioral therapy, criminal profiling, and linguistic analysis.
+        return f"""Experienced psychologist-profiler. Professional personality analysis via Freud, Jung, Big Five, MBTI + speech patterns.
 
-Conduct a DEEP professional personality analysis using methods:
-• Psychoanalysis (Freud): personality structure, defense mechanisms
-• Analytical psychology (Jung): archetypes, typology
-• Big Five theory (OCEAN)
-• Myers-Briggs typology (MBTI)
-• Linguistic profiling
+MUST INCLUDE:
+💼 CAREER GUIDANCE: specific professions (3-5) with psychological justification, career strategy
 
-ALSO analyze the user's speech style:
+FORMAT:
+🧠 PROFILE: dominant structure (Id/Ego/Superego) + defense mechanisms with examples from answers
+🎭 TYPOLOGY: Jung archetype + MBTI type + temperament with justification  
+📊 BIG FIVE: O/C/E/A/N (scores 1-10 + analysis)
+🎯 BEHAVIOR: motivation, stress strategies, decision style, interpersonal patterns
+🗣️ SPEECH: style, cognitive markers, emotional indicators
+⚠️ RISKS: 2-3 psychological vulnerabilities
+🎯 DEVELOPMENT: 3-4 concrete recommendations
+💼 CAREER: suitable fields, professions with justification, education, growth strategy
+🔮 FORECAST: behavior in stress/team/relationships
 
-CRITICAL: Include detailed professional recommendations:
-💼 Suitable career fields based on personality type and abilities
-💼 Specific professions (3-5) with psychological justification
-💼 Learning directions and recommended training/education
-💼 Optimal career strategy for professional development
+{speech_analysis}
 
-MANDATORY RESPONSE FORMAT:
----
-🧠 PSYCHOANALYTIC PROFILE:
-Personality structure: [dominant instance: Id/Ego/Superego + justification]
-Defense mechanisms: [2-3 main mechanisms with examples from answers]
-Unconscious conflicts: [identified internal contradictions]
-
-🎭 ARCHETYPE AND TYPOLOGY:
-Dominant archetype: [Jung archetype + description]
-MBTI type: [4-letter code + explanation]
-Temperament: [type + psychophysiological justification]
-
-📊 PERSONALITY PROFILE (Big Five):
-Openness: [score 1-10 + description]
-Conscientiousness: [score 1-10 + description]
-Extraversion: [score 1-10 + description]
-Agreeableness: [score 1-10 + description]
-Neuroticism: [score 1-10 + description]
-
-🎯 BEHAVIORAL PROFILING:
-Motivational structure: [main behavioral drivers]
-Coping strategies: [how handles stress]
-Decision-making model: [rational/intuitive/emotional]
-Interpersonal style: [interaction patterns]
-
-🗣️ LINGUISTIC ANALYSIS:
-Speech patterns: [language and style features]
-Cognitive markers: [thinking style through speech]
-Emotional indicators: [emotional state through language]
-
-⚠️ PSYCHOLOGICAL RISKS:
-[2-3 potential problem areas]
-
-🎯 DEVELOPMENT RECOMMENDATIONS:
-[3-4 concrete recommendations with justification]
-
-💼 PROFESSIONAL RECOMMENDATIONS:
-Suitable activity fields: [based on personality type, abilities and motivation]
-Specific professions: [3-5 most suitable professions with psychological justification]
-Learning directions: [courses, specializations, skills for career development]
-Career strategy: [optimal paths for professional growth and development]
-
-🔮 BEHAVIOR FORECAST:
-Under stress: [probable reactions]
-In team: [role and behavior]
-In relationships: [interaction patterns]
----
-
-ANSWERS FOR ANALYSIS:
+ANSWERS:
 {answers_block}
 
-Conduct the deepest possible analysis using professional terminology and specific examples from the answers."""
+Use professional terminology and examples from answers."""
 
 def extract_user_summary(analysis, language):
     """Извлекает краткую версию анализа для пользователя (без личных данных)"""
